@@ -1,0 +1,6 @@
+*.log
+/nbproject
+.project
+.idea
+
+mfg-auth.php
