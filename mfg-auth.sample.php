@@ -8,8 +8,8 @@ define('mfg_pass', 'password');
 /*
  * kancolle
  */
-define('kan_id', 141008751);
-define('kan_nickname', 'Slime');
+define('kan_id', 123456789);
+define('kan_nickname', 'nickname');
 
 /*
  * proxy auth

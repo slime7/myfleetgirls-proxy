@@ -140,6 +140,18 @@ class MFGProxy
         }
         break;
 
+      case '/kcsapi/api_req_kousyou/remodel_slotlist':
+        $this->parseRemodelslot();
+        break;
+
+      case '/kcsapi/api_req_kousyou/remodel_slotlist_detail':
+        $this->parseRemodelslotdetail();
+        break;
+
+      case '/kcsapi/api_req_kousyou/remodel_slot':
+        $this->parseRemodel();
+        break;
+
       default:
         $this->response['result'] = 'not ready';
         break;
@@ -343,6 +355,14 @@ class MFGProxy
     if (!$lastmap) {
       return false;
     }
+    $getShip = [];
+    if (isset($api_battleresult['api_get_ship'])) {
+      $getShip = [
+        'id' => $api_battleresult['api_get_ship']['api_ship_id'],
+        'stype' => $api_battleresult['api_get_ship']['api_ship_type'],
+        'name' => $api_battleresult['api_get_ship']['api_ship_name']
+      ];
+    }
     $this->mfgReqData = [
       '_1' => [
         'enemies' => array_slice($api_battleresult['api_ship_id'], 1),
@@ -356,11 +376,7 @@ class MFGProxy
         'questLevel' => $api_battleresult['api_quest_level'],
         'enemyDeck' => $api_battleresult['api_enemy_info']['api_deck_name'],
         'firstClear' => !!$api_battleresult['api_first_clear'],
-        'getShip' => [
-          'id' => $api_battleresult['api_get_ship']['api_ship_id'],
-          'stype' => $api_battleresult['api_get_ship']['api_ship_type'],
-          'name' => $api_battleresult['api_get_ship']['api_ship_name']
-        ]
+        'getShip' => $getShip
       ],
       '_2' => $lastmap
     ];
@@ -373,7 +389,7 @@ class MFGProxy
 
   private function parseUpdateship() {
     $api_shipdeck = $this->svdata['api_data']['api_ship_data'];
-    $fleet = removeEmpty($this->svdata['api_data']['api_deck_data'][0]['api_ship']);
+    $fleet = $this->removeEmpty($this->svdata['api_data']['api_deck_data'][0]['api_ship']);
     foreach ($api_shipdeck as $ship) {
       $this->mfgReqData[] = $this->formatShip($ship);
     }
@@ -459,8 +475,8 @@ class MFGProxy
   private function parseGetship() {
     $api_getship = $this->svdata['api_data'];
     $this->mfgReqData = [
-      'kDockId' => $this->gamepost['api_kdock_id'],
-      'shipId' => $api_getship['api_ship_id']
+      'kDockId' => (int)$this->gamepost['api_kdock_id'],
+      'shipId' => (int)$api_getship['api_ship_id']
     ];
     $this->mfgReqUrl = '/post/v1/delete_kdock';
     return $this->mfgReq();
@@ -498,19 +514,89 @@ class MFGProxy
     }
     $this->mfgReqData = [
       'createShip' => [
-        'fuel' => $this->gamepost['api_item1'],
-        'ammo' => $this->gamepost['api_item2'],
-        'steel' => $this->gamepost['api_item3'],
-        'bauxite' => $this->gamepost['api_item4'],
-        'develop' => $this->gamepost['api_item5'],
-        'kDock' => $this->gamepost['api_kdock_id'],
-        'highspeed' => !!$this->gamepost['api_highspeed'],
-        'largeFlag' => !!$this->gamepost['api_large_flag'],
+        'fuel' => (int)$this->gamepost['api_item1'],
+        'ammo' => (int)$this->gamepost['api_item2'],
+        'steel' => (int)$this->gamepost['api_item3'],
+        'bauxite' => (int)$this->gamepost['api_item4'],
+        'develop' => (int)$this->gamepost['api_item5'],
+        'kDock' => (int)$this->gamepost['api_kdock_id'],
+        'highspeed' => !!(int)$this->gamepost['api_highspeed'],
+        'largeFlag' => !!(int)$this->gamepost['api_large_flag'],
         'firstShip' => $firstFleet[0]
       ],
-      'kDock' => $kdock
+      'kDock' => $kdock[$this->gamepost['api_kdock_id']]
     ];
+    foreach ($kdock as $k) {
+      if ($k['id'] === (int)$this->gamepost['api_kdock_id']) {
+        $this->mfgReqData['kDock'] = $k;
+      }
+    }
+    unset($k);
     $this->mfgReqUrl = '/post/v1/createship';
+    return $this->mfgReq();
+  }
+
+  private function parseRemodelslot() {
+    $firstFleet = $this->getData('firstfleet');
+    $api_remodelslotlist = $this->svdata['api_data'];
+    $this->mfgReqData = [
+      'second' => $firstFleet[1],
+      'list' => []
+    ];
+    foreach ($api_remodelslotlist as $remodelslot) {
+      $this->mfgReqData['list'][] = [
+        'id' => $remodelslot['api_id'],
+        'slotId' => $remodelslot['api_slot_id'],
+        'fuel' => $remodelslot['api_req_fuel'],
+        'ammo' => $remodelslot['api_req_bull'],
+        'steel' => $remodelslot['api_req_steel'],
+        'bauxite' => $remodelslot['api_req_bauxite'],
+        'develop' => $remodelslot['api_req_buildkit'],
+        'revamping' => $remodelslot['api_req_remodelkit'],
+        'reqSlotId' => $remodelslot['api_req_slot_id'],
+        'slotNum' => $remodelslot['api_req_slot_num']
+      ];
+    }
+    $this->mfgReqUrl = '/post/v1/remodel_slot';
+    return $this->mfgReq();
+  }
+
+  private function parseRemodelslotdetail() {
+    $firstFleet = $this->getData('firstfleet');
+    $api_remodelslotdetail = $this->svdata['api_data'];
+    $this->mfgReqData = [
+      'develop' => $api_remodelslotdetail['api_req_buildkit'],
+      'remodel' => $api_remodelslotdetail['api_req_remodelkit'],
+      'certainDevelop' => $api_remodelslotdetail['api_certain_buildkit'],
+      'certainRemodel' => $api_remodelslotdetail['api_certain_remodelkit'],
+      'slotitemId' => $api_remodelslotdetail['api_req_slot_id'],
+      'slotitemNum' => $api_remodelslotdetail['api_req_slot_num'],
+      'changeFlag' => !!$api_remodelslotdetail['api_change_flag'],
+      'origSlotId' => (int)$this->gamepost['api_slot_id'],
+      'secondShipId' => $firstFleet[1]
+    ];
+    $this->mfgReqUrl = '/post/v1/master_remodel';
+    return $this->mfgReq();
+  }
+
+  private function parseRemodel() {
+    $api_remodel = $this->svdata['api_data'];
+    $this->mfgReqData = [
+      'flag' => !!$api_remodel['api_remodel_flag'],
+      'beforeItemId' => $api_remodel['api_remodel_id'][0],
+      'afterItemId' => $api_remodel['api_remodel_id'][1],
+      'voiceId' => $api_remodel['api_voice_id'],
+      'afterSlot' => [
+        'id' => $api_remodel['api_after_slot']['api_id'],
+        'slotitemId' => $api_remodel['api_after_slot']['api_slotitem_id'],
+        'locked' => !!$api_remodel['api_after_slot']['api_locked'],
+        'level' => $api_remodel['api_after_slot']['api_level']
+      ],
+      'useSlotIds' => $api_remodel['api_use_slot_id'],
+      'certain' => !!(int)$this->gamepost['api_certain_flag'],
+      'slotId' => (int)$this->gamepost['api_slot_id']
+    ];
+    $this->mfgReqUrl = '/post/v1/remodel';
     return $this->mfgReq();
   }
 
@@ -588,8 +674,8 @@ class MFGProxy
     $savadataprefix = __DIR__ . '/savedata/' . $this->mfgAuth['id'] . '_' . $this->kanInfo['id'];
     $route = $savadataprefix . '_route';
     $fleet = $savadataprefix . '_fleet';
-    unlink($route);
-    unlink($fleet);
+    is_file($route) && unlink($route);
+    is_file($fleet) && unlink($fleet);
   }
 
   private function json() {
@@ -630,7 +716,7 @@ class MFGProxy
   }
 
   private function setData($key, $data) {
-    if (!is_dir(__DIR__ . '/sevadata/')) {
+    if (!is_dir(__DIR__ . '/savedata/')) {
       mkdir(__DIR__ . '/savedata/');
     }
     $path = __DIR__ . '/savedata/' . $this->mfgAuth['id'] . '_' . $this->kanInfo['id'] . '_' . $key;
