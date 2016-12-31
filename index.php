@@ -330,7 +330,10 @@ class MFGProxy
 
   private function parseUpdateship() {
     $api_shipdeck = $this->svdata['api_data']['api_ship_data'];
-    $fleet = $this->svdata['api_data']['api_deck_data'][0]['api_ship'];
+    $fleet = array_filter($this->svdata['api_data']['api_deck_data'][0]['api_ship'],
+      function ($v) {
+        return $v !== -1;
+      });
     foreach ($api_shipdeck as $ship) {
       $this->mfgReqData[] = $this->formatShip($ship);
     }
