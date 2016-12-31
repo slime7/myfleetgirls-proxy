@@ -69,12 +69,17 @@ class MFGProxy
 
     switch ($this->apiPath) {
       case '/kcsapi/api_port/port':
+        $this->firstFleetStore();
         $this->parseShips();
         $this->parseMaterial(true);
         $this->parseDeckport(true);
         $this->parseBasic();
         $this->parseNdock();
         $this->clearfile();
+        break;
+
+      case '/kcsapi/api_req_hensei/change':
+        $this->firstFleetChange();
         break;
 
       case '/kcsapi/api_get_member/material':
@@ -116,12 +121,50 @@ class MFGProxy
         $this->parseDeckport();
         break;
 
+      case '/kcsapi/api_req_kousyou/createitem':
+        $this->parseCreateitem();
+        break;
+
+      case '/kcsapi/api_req_kousyou/getship':
+        $this->parseGetship();
+        break;
+
+      case '/kcsapi/api_get_member/kdock':
+        $this->parseKdock();
+        break;
+
+      case '/kcsapi/api_req_kousyou/createship':
+        $res = $this->parseCreateship();
+        if (!$res) {
+          $this->response['/kcsapi/api_req_kousyou/createship'] = 'read file error.';
+        }
+        break;
+
       default:
         $this->response['result'] = 'not ready';
         break;
     }
 
     $this->json();
+  }
+
+  private function firstFleetStore() {
+    $api_firstFleet = $this->svdata['api_data']['api_deck_port'][0]['api_ship'];
+    $this->setData('firstfleet', $this->removeEmpty($api_firstFleet));
+  }
+
+  private function firstFleetChange() {
+    $api_change = $this->gamepost;
+    if ($api_change['api_id'] != 1) {
+      return;
+    }
+    $fleetData = $this->getData('firstfleet');
+    $isSwitch = array_search($api_change['api_ship_id'], $fleetData);
+    if ($isSwitch) {
+      $fleetData[$isSwitch] = $fleetData[$api_change['api_ship_idx']];
+    }
+    $fleetData[$api_change['api_ship_idx']] = (int)$api_change['api_ship_id'];
+    $this->setData('firstfleet', $fleetData);
   }
 
   private function parseItem() {
@@ -330,10 +373,7 @@ class MFGProxy
 
   private function parseUpdateship() {
     $api_shipdeck = $this->svdata['api_data']['api_ship_data'];
-    $fleet = array_filter($this->svdata['api_data']['api_deck_data'][0]['api_ship'],
-      function ($v) {
-        return $v !== -1;
-      });
+    $fleet = removeEmpty($this->svdata['api_data']['api_deck_data'][0]['api_ship']);
     foreach ($api_shipdeck as $ship) {
       $this->mfgReqData[] = $this->formatShip($ship);
     }
@@ -398,6 +438,82 @@ class MFGProxy
     return $this->mfgReq();
   }
 
+  private function parseCreateitem() {
+    $api_createitem = $this->svdata['api_data'];
+    $firstFleet = $this->getData('firstfleet');
+    $this->mfgReqData = [
+      'id' => $api_createitem['api_slot_item']['api_id'],
+      'slotitemId' => $api_createitem['api_slot_item']['api_slotitem_id'],
+      'fuel' => $this->gamepost['api_item1'],
+      'ammo' => $this->gamepost['api_item2'],
+      'steel' => $this->gamepost['api_item3'],
+      'bauxite' => $this->gamepost['api_item4'],
+      'createFlag' => !!$api_createitem['api_create_flag'],
+      'shizaiFlag' => $api_createitem['api_shizai_flag'],
+      'flagship' => $firstFleet[0]
+    ];
+    $this->mfgReqUrl = '/post/v1/createitem';
+    return $this->mfgReq();
+  }
+
+  private function parseGetship() {
+    $api_getship = $this->svdata['api_data'];
+    $this->mfgReqData = [
+      'kDockId' => $this->gamepost['api_kdock_id'],
+      'shipId' => $api_getship['api_ship_id']
+    ];
+    $this->mfgReqUrl = '/post/v1/delete_kdock';
+    return $this->mfgReq();
+  }
+
+  private function parseKdock() {
+    $api_kdock = $this->svdata['api_data'];
+    foreach ($api_kdock as $kdock) {
+      if ($kdock['api_state'] === 2) {
+        $this->mfgReqData[] = [
+          'id' => $kdock['api_id'],
+          'shipId' => $kdock['api_created_ship_id'],
+          'state' => $kdock['api_state'],
+          'completeTime' => $kdock['api_complete_time'],
+          'fuel' => $kdock['api_item1'],
+          'ammo' => $kdock['api_item2'],
+          'steel' => $kdock['api_item3'],
+          'bauxite' => $kdock['api_item4']
+        ];
+      }
+    }
+    $this->setData('kdock', $this->mfgReqData);
+    $this->mfgReqUrl = '/post/v1/kdock';
+    return $this->mfgReq();
+  }
+
+  private function parseCreateship() {
+    $trycount = 5;
+    while ($trycount-- && false === ($kdock = $this->getData('kdock'))) {
+      sleep(1);
+    }
+    $firstFleet = $this->getData('firstfleet');
+    if (false === $kdock || !$firstFleet) {
+      return false;
+    }
+    $this->mfgReqData = [
+      'createShip' => [
+        'fuel' => $this->gamepost['api_item1'],
+        'ammo' => $this->gamepost['api_item2'],
+        'steel' => $this->gamepost['api_item3'],
+        'bauxite' => $this->gamepost['api_item4'],
+        'develop' => $this->gamepost['api_item5'],
+        'kDock' => $this->gamepost['api_kdock_id'],
+        'highspeed' => !!$this->gamepost['api_highspeed'],
+        'largeFlag' => !!$this->gamepost['api_large_flag'],
+        'firstShip' => $firstFleet[0]
+      ],
+      'kDock' => $kdock
+    ];
+    $this->mfgReqUrl = '/post/v1/createship';
+    return $this->mfgReq();
+  }
+
   private function mfgReq() {
     $url = $this->mfgURL . $this->mfgReqUrl;
     $postData = [
@@ -459,6 +575,13 @@ class MFGProxy
     ];
 
     return $ship;
+  }
+
+  private function removeEmpty($array) {
+    return array_filter($array,
+      function ($v) {
+        return $v !== -1;
+      });
   }
 
   private function clearfile() {
