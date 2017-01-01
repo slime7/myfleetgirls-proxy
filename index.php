@@ -227,11 +227,7 @@ class MFGProxy
       $api_deckport = $api_deckport['api_deck_port'];
     }
     $fleetTemp = function ($id, $name, $ships, $mission = null) {
-      foreach ($ships as &$ship) {
-        if ($ship === -1) {
-          unset($ship);
-        }
-      }
+      $ships = $this->removeEmpty($ships);
       $f = [
         'id' => $id,
         'name' => $name,
@@ -276,6 +272,7 @@ class MFGProxy
           'completeTime' => $api_deckport[3]['api_mission'][2]
         ])
     ];
+    $this->response['deck'] = json_encode($this->mfgReqData);
     $this->mfgReqUrl = '/post/v1/deckport';
     return $this->mfgReq();
   }
