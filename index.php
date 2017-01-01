@@ -171,7 +171,7 @@ class MFGProxy
       return;
     }
     $fleetData = $this->getData('firstfleet');
-    $isSwitch = array_search($api_change['api_ship_id'], $fleetData);
+    $isSwitch = array_search((int)$api_change['api_ship_id'], $fleetData);
     if ($isSwitch) {
       $fleetData[$isSwitch] = $fleetData[$api_change['api_ship_idx']];
     }
@@ -458,16 +458,18 @@ class MFGProxy
     $api_createitem = $this->svdata['api_data'];
     $firstFleet = $this->getData('firstfleet');
     $this->mfgReqData = [
-      'id' => $api_createitem['api_slot_item']['api_id'],
-      'slotitemId' => $api_createitem['api_slot_item']['api_slotitem_id'],
-      'fuel' => $this->gamepost['api_item1'],
-      'ammo' => $this->gamepost['api_item2'],
-      'steel' => $this->gamepost['api_item3'],
-      'bauxite' => $this->gamepost['api_item4'],
+      'fuel' => (int)$this->gamepost['api_item1'],
+      'ammo' => (int)$this->gamepost['api_item2'],
+      'steel' => (int)$this->gamepost['api_item3'],
+      'bauxite' => (int)$this->gamepost['api_item4'],
       'createFlag' => !!$api_createitem['api_create_flag'],
-      'shizaiFlag' => $api_createitem['api_shizai_flag'],
+      'shizaiFlag' => !!$api_createitem['api_shizai_flag'],
       'flagship' => $firstFleet[0]
     ];
+    if (!!$api_createitem['api_create_flag']) {
+      $this->mfgReqData['id'] = $api_createitem['api_slot_item']['api_id'];
+      $this->mfgReqData['slotitemId'] = $api_createitem['api_slot_item']['api_slotitem_id'];
+    }
     $this->mfgReqUrl = '/post/v1/createitem';
     return $this->mfgReq();
   }
@@ -524,10 +526,10 @@ class MFGProxy
         'largeFlag' => !!(int)$this->gamepost['api_large_flag'],
         'firstShip' => $firstFleet[0]
       ],
-      'kDock' => $kdock[$this->gamepost['api_kdock_id']]
+      'kDock' => []
     ];
     foreach ($kdock as $k) {
-      if ($k['id'] === (int)$this->gamepost['api_kdock_id']) {
+      if ($k['id'] == (int)$this->gamepost['api_kdock_id']) {
         $this->mfgReqData['kDock'] = $k;
       }
     }
