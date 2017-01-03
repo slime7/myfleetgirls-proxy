@@ -19,7 +19,8 @@ $i = [
     '/kcsapi/api_req_kousyou/createship',
     '/kcsapi/api_req_kousyou/remodel_slotlist',
     '/kcsapi/api_req_kousyou/remodel_slotlist_detail',
-    '/kcsapi/api_req_kousyou/remodel_slot'
+    '/kcsapi/api_req_kousyou/remodel_slot',
+    '/kcsapi/api_get_member/ship3'
   ]
 ];
 exit(json_encode($i));

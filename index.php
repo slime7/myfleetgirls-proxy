@@ -106,6 +106,7 @@ class MFGProxy
         break;
 
       case '/kcsapi/api_get_member/ship_deck':
+      case '/kcsapi/api_get_member/ship3':
         $this->parseUpdateship();
         break;
 
