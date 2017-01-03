@@ -136,7 +136,7 @@ class MFGProxy
       case '/kcsapi/api_req_kousyou/createship':
         $res = $this->parseCreateship();
         if (!$res) {
-          $this->response['/kcsapi/api_req_kousyou/createship'] = 'read file error.';
+          $this->response['/kcsapi/api_req_kousyou/createship'] = 'create file error.';
         }
         break;
 
@@ -175,7 +175,11 @@ class MFGProxy
     if ($isSwitch) {
       $fleetData[$isSwitch] = $fleetData[$api_change['api_ship_idx']];
     }
-    $fleetData[$api_change['api_ship_idx']] = (int)$api_change['api_ship_id'];
+    if (-1 == $api_change['api_ship_id']) {
+      array_splice($fleetData, (int)$api_change['api_ship_idx'], 1);
+    } else {
+      $fleetData[$api_change['api_ship_idx']] = (int)$api_change['api_ship_id'];
+    }
     $this->setData('firstfleet', $fleetData);
   }
 
@@ -272,7 +276,6 @@ class MFGProxy
           'completeTime' => $api_deckport[3]['api_mission'][2]
         ])
     ];
-    $this->response['deck'] = json_encode($this->mfgReqData);
     $this->mfgReqUrl = '/post/v1/deckport';
     return $this->mfgReq();
   }
@@ -482,36 +485,49 @@ class MFGProxy
   }
 
   private function parseKdock() {
+    $kdockReq = $_kdock = [];
     $api_kdock = $this->svdata['api_data'];
     foreach ($api_kdock as $kdock) {
+      $_kdock[] = [
+        'id' => $kdock['api_id'],
+        'shipId' => $kdock['api_created_ship_id'],
+        'state' => $kdock['api_state'],
+        'completeTime' => $kdock['api_complete_time'],
+        'fuel' => $kdock['api_item1'],
+        'ammo' => $kdock['api_item2'],
+        'steel' => $kdock['api_item3'],
+        'bauxite' => $kdock['api_item4']
+      ];
       if ($kdock['api_state'] === 2) {
-        $this->mfgReqData[] = [
-          'id' => $kdock['api_id'],
-          'shipId' => $kdock['api_created_ship_id'],
-          'state' => $kdock['api_state'],
-          'completeTime' => $kdock['api_complete_time'],
-          'fuel' => $kdock['api_item1'],
-          'ammo' => $kdock['api_item2'],
-          'steel' => $kdock['api_item3'],
-          'bauxite' => $kdock['api_item4']
-        ];
+        $kdockReq[] = $_kdock[count($_kdock) - 1];
       }
     }
-    $this->setData('kdock', $this->mfgReqData);
+
+    if ($createshipData = $this->getData('createship')) {
+      $this->mfgReqData = $createshipData;
+      if ($this->mfgReqData['createShip']['highspeed']) {
+        $this->mfgReqData['resultShip'] = $_kdock[$this->mfgReqData['createShip']['kDock'] - 1]['shipId'];
+        $this->mfgReqUrl = '/post/v2/createship';
+      } else {
+        $this->mfgReqData['kDock'] = $_kdock[$this->mfgReqData['createShip']['kDock'] - 1];
+        $this->mfgReqUrl = '/post/v1/createship';
+      }
+      $this->mfgReq();
+      $this->clearfile();
+    }
+
+    $this->setData('kdock', $_kdock);
+    $this->mfgReqData = $kdockReq;
     $this->mfgReqUrl = '/post/v1/kdock';
     return $this->mfgReq();
   }
 
   private function parseCreateship() {
-    $trycount = 5;
-    while ($trycount-- && false === ($kdock = $this->getData('kdock'))) {
-      sleep(1);
-    }
     $firstFleet = $this->getData('firstfleet');
-    if (false === $kdock || !$firstFleet) {
+    if (!$firstFleet) {
       return false;
     }
-    $this->mfgReqData = [
+    $createData = [
       'createShip' => [
         'fuel' => (int)$this->gamepost['api_item1'],
         'ammo' => (int)$this->gamepost['api_item2'],
@@ -522,17 +538,9 @@ class MFGProxy
         'highspeed' => !!(int)$this->gamepost['api_highspeed'],
         'largeFlag' => !!(int)$this->gamepost['api_large_flag'],
         'firstShip' => $firstFleet[0]
-      ],
-      'kDock' => []
+      ]
     ];
-    foreach ($kdock as $k) {
-      if ($k['id'] == (int)$this->gamepost['api_kdock_id']) {
-        $this->mfgReqData['kDock'] = $k;
-      }
-    }
-    unset($k);
-    $this->mfgReqUrl = '/post/v1/createship';
-    return $this->mfgReq();
+    return $this->setData('createship', $createData);
   }
 
   private function parseRemodelslot() {
@@ -599,8 +607,8 @@ class MFGProxy
     return $this->mfgReq();
   }
 
-  private function mfgReq() {
-    $url = $this->mfgURL . $this->mfgReqUrl;
+  private function mfgReq($reqUrl = null) {
+    $url = $this->mfgURL . (isset($reqUrl) ? $reqUrl : $this->mfgReqUrl);
     $postData = [
       'auth' => (json_encode($this->kanInfo)),
       'auth2' => (json_encode($this->mfgAuth)),
@@ -673,8 +681,10 @@ class MFGProxy
     $savadataprefix = __DIR__ . '/savedata/' . $this->mfgAuth['id'] . '_' . $this->kanInfo['id'];
     $route = $savadataprefix . '_route';
     $fleet = $savadataprefix . '_fleet';
+    $createship = $savadataprefix . '_createship';
     is_file($route) && unlink($route);
     is_file($fleet) && unlink($fleet);
+    is_file($createship) && unlink($createship);
   }
 
   private function json() {
