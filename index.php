@@ -85,8 +85,8 @@ class MFGProxy
    * 处理接收的游戏数据
    */
   public function handle() {
-    $u = isset($post['u']) ? $post['u'] : null;
     $post = $this->parseBody()['data'];
+    $u = isset($post['u']) ? $post['u'] : null;
     if (!auth($u)) {
       exit();
     }
