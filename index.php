@@ -1,6 +1,9 @@
 <?php
 define('SYSTEM_coding', 'GBK');
 
+/**
+ * 引入设置文件
+ */
 if (file_exists('mfg-auth.php')) {
   include 'mfg-auth.php';
 } else {
@@ -13,42 +16,63 @@ $mfg = new MFGProxy(
 );
 $mfg->handle();
 
+/**
+ * Class MFGProxy
+ * @Author Slime7
+ */
 class MFGProxy
 {
-  /*
-   * mfg身份验证数据
+  /**
+   * @var array mfg身份验证数据
    */
   private $mfgAuth = [];
 
-  /*
-   * KanColle身份信息
+  /**
+   * @var array KanColle身份信息
    */
   private $kanInfo = [];
 
-  /*
-   * mfg运营url
+  /**
+   * @var string mfg运营url
    */
   private $mfgURL = 'https://myfleet.moe';
 
-  /*
-   * 游戏返回的原始数据
+  /**
+   * @var array 游戏返回的原始数据
    */
   private $svdata = [];
 
-  /*
-   * 游戏请求中的post数据
+  /**
+   * @var array 游戏请求中的post数据
    */
   private $gamepost = [];
 
   /**
-   * 游戏kcapi路径
+   * @var string 游戏kcapi路径
    */
   private $apiPath = '';
 
+  /**
+   * @var array 向mfg请求的数据
+   */
   private $mfgReqData = [];
+
+  /**
+   * @var string 向mfg请求的路径
+   */
   private $mfgReqUrl = '';
+
+  /**
+   * @var array mfg请求返回的信息
+   */
   private $response = [];
 
+  /**
+   * MFGProxy constructor.
+   * @param $mfgAuth
+   * @param $kanInfo
+   * @param null $url
+   */
   public function __construct($mfgAuth, $kanInfo, $url = null) {
     $this->mfgAuth = $mfgAuth;
     $this->kanInfo = $kanInfo;
@@ -57,9 +81,13 @@ class MFGProxy
     }
   }
 
+  /**
+   * 处理接收的游戏数据
+   */
   public function handle() {
+    $u = isset($post['u']) ? $post['u'] : null;
     $post = $this->parseBody()['data'];
-    if (!auth($post['u'])) {
+    if (!auth($u)) {
       exit();
     }
 
@@ -68,6 +96,9 @@ class MFGProxy
     parse_str(str_replace('%5F', '_', $post['gamepost']), $this->gamepost);
 
     switch ($this->apiPath) {
+      /**
+       * 母港界面
+       */
       case '/kcsapi/api_port/port':
         $this->firstFleetStore();
         $this->parseShips();
@@ -78,26 +109,44 @@ class MFGProxy
         $this->clearfile();
         break;
 
+      /**
+       * 编成
+       */
       case '/kcsapi/api_req_hensei/change':
         $this->firstFleetChange();
         break;
 
+      /**
+       * 资源
+       */
       case '/kcsapi/api_get_member/material':
         $this->parseMaterial();
         break;
 
+      /**
+       * 进入
+       */
       case '/kcsapi/api_get_member/require_info':
         $this->parseItem();
         break;
 
+      /**
+       * 出击界面
+       */
       case '/kcsapi/api_get_member/mapinfo':
         $this->parseMapinfo();
         break;
 
+      /**
+       * 出击
+       */
       case '/kcsapi/api_req_map/start':
         $this->parseMapstart();
         break;
 
+      /**
+       * 战斗结果
+       */
       case '/kcsapi/api_req_sortie/battleresult':
         $res = $this->parseBattleresult();
         if (!$res) {
@@ -105,35 +154,59 @@ class MFGProxy
         }
         break;
 
+      /**
+       * 获得、换装备
+       */
       case '/kcsapi/api_get_member/ship_deck':
       case '/kcsapi/api_get_member/ship3':
         $this->parseUpdateship();
         break;
 
+      /**
+       * 罗盘
+       */
       case '/kcsapi/api_req_map/next':
         $this->parseMaproute();
         break;
 
+      /**
+       * 任务
+       */
       case '/kcsapi/api_get_member/questlist':
         $this->parseQuestlist();
         break;
 
+      /**
+       * 编队信息
+       */
       case '/kcsapi/api_get_member/deck':
         $this->parseDeckport();
         break;
 
+      /**
+       * 开发
+       */
       case '/kcsapi/api_req_kousyou/createitem':
         $this->parseCreateitem();
         break;
 
+      /**
+       * 建造获取
+       */
       case '/kcsapi/api_req_kousyou/getship':
         $this->parseGetship();
         break;
 
+      /**
+       * 建造渠
+       */
       case '/kcsapi/api_get_member/kdock':
         $this->parseKdock();
         break;
 
+      /**
+       * 建造
+       */
       case '/kcsapi/api_req_kousyou/createship':
         $res = $this->parseCreateship();
         if (!$res) {
@@ -141,14 +214,23 @@ class MFGProxy
         }
         break;
 
+      /**
+       * 改造列表
+       */
       case '/kcsapi/api_req_kousyou/remodel_slotlist':
         $this->parseRemodelslot();
         break;
 
+      /**
+       * 改造详情
+       */
       case '/kcsapi/api_req_kousyou/remodel_slotlist_detail':
         $this->parseRemodelslotdetail();
         break;
 
+      /**
+       * 改造
+       */
       case '/kcsapi/api_req_kousyou/remodel_slot':
         $this->parseRemodel();
         break;
@@ -608,6 +690,11 @@ class MFGProxy
     return $this->mfgReq();
   }
 
+  /**
+   * 对mfg发起请求
+   * @param null $reqUrl
+   * @return bool
+   */
   private function mfgReq($reqUrl = null) {
     $url = $this->mfgURL . (isset($reqUrl) ? $reqUrl : $this->mfgReqUrl);
     $postData = [
