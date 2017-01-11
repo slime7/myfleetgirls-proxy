@@ -95,6 +95,11 @@ class MFGProxy
     $this->svdata = json_decode(substr($post['svdata'], 7), true);
     parse_str(str_replace('%5F', '_', $post['gamepost']), $this->gamepost);
 
+    if ($this->svdata['api_result'] != 1) {
+      $this->response['msg'] = $this->svdata['api_result_msg'];
+      $this->json();
+    }
+
     switch ($this->apiPath) {
       /**
        * 母港界面
