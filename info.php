@@ -9,6 +9,7 @@ $i = [
     '/kcsapi/api_get_member/mapinfo',
     '/kcsapi/api_req_map/start',
     '/kcsapi/api_req_sortie/battleresult',
+    '/kcsapi/api_req_combined_battle/battleresult',
     '/kcsapi/api_get_member/ship_deck',
     '/kcsapi/api_req_map/next',
     '/kcsapi/api_get_member/questlist',

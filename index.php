@@ -153,6 +153,7 @@ class MFGProxy
        * 战斗结果
        */
       case '/kcsapi/api_req_sortie/battleresult':
+      case '/kcsapi/api_req_combined_battle/battleresult':
         $res = $this->parseBattleresult();
         if (!$res) {
           $this->response['/kcsapi/api_req_sortie/battleresult'] = 'read file error';
@@ -459,7 +460,7 @@ class MFGProxy
         'mvp' => $api_battleresult['api_mvp'],
         'baseExp' => $api_battleresult['api_get_base_exp'],
         'shipExp' => array_slice($api_battleresult['api_get_ship_exp'], 1),
-        'lostFlag' => array_slice($api_battleresult['api_lost_flag'], 1),
+        'lostFlag' => isset($api_battleresult['api_lost_flag']) ? array_slice($api_battleresult['api_lost_flag'], 1) : [],
         'questName' => $api_battleresult['api_quest_name'],
         'questLevel' => $api_battleresult['api_quest_level'],
         'enemyDeck' => $api_battleresult['api_enemy_info']['api_deck_name'],
