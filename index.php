@@ -787,31 +787,21 @@ class MFGProxy
   }
 
   private function parseBody() {
-    $data = NULL;
-    $files = NULL;
-
-    if (isset($_POST) AND !empty($_POST)) {
+    $data = null;
+    $files = null;
+    if (isset($_POST) && !empty($_POST)) {
       $data = $_POST;
     }
-
-    if (isset($_FILES) AND !empty($_FILES)) {
+    if (isset($_FILES) && !empty($_FILES)) {
       $files = $_FILES;
     }
-
-    if ($data === NULL) {
-      if (isset($_SERVER['CONTENT_TYPE']) AND strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false) {
+    //In case of request with json body
+    if ($data === null) {
+      if (isset($_SERVER["CONTENT_TYPE"]) && strpos($_SERVER["CONTENT_TYPE"], 'application/json') !== false) {
         $input = file_get_contents('php://input');
-
         $data = json_decode($input, true);
-      } else {
-        $stream = [];
-        new stream($stream);
-
-        $data = $stream['post'];
-        $files = $stream['file'];
       }
     }
-
     return [
       'data' => $data,
       'files' => $files
