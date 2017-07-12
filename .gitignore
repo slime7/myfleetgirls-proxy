@@ -6,3 +6,5 @@
 mfg-auth.php
 /test
 /savedata
+/plugins/*
+!/plugins/.gitkeep
