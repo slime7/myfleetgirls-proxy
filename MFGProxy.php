@@ -69,7 +69,7 @@ class MFGProxy
    * 处理接收的游戏数据
    */
   public function handle() {
-    $post = $this->parseBody()['data'];
+    $post = $GLOBALS['post'];
     $u = isset($post['u']) ? $post['u'] : null;
     if (!auth($u)) {
       exit();
@@ -768,28 +768,6 @@ class MFGProxy
   private function json() {
     header('Content-type:text/json');
     exit(json_encode($this->response, JSON_UNESCAPED_UNICODE));
-  }
-
-  private function parseBody() {
-    $data = null;
-    $files = null;
-    if (isset($_POST) && !empty($_POST)) {
-      $data = $_POST;
-    }
-    if (isset($_FILES) && !empty($_FILES)) {
-      $files = $_FILES;
-    }
-    //In case of request with json body
-    if ($data === null) {
-      if (isset($_SERVER["CONTENT_TYPE"]) && strpos($_SERVER["CONTENT_TYPE"], 'application/json') !== false) {
-        $input = file_get_contents('php://input');
-        $data = json_decode($input, true);
-      }
-    }
-    return [
-      'data' => $data,
-      'files' => $files
-    ];
   }
 
   private function setData($key, $data) {
